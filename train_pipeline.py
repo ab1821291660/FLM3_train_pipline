@@ -85,16 +85,20 @@ def _supervised_examples(
             ids = tokenizer.encode(row["text"], max_length=max_length)
             examples.append((ids, ids.copy()))
         elif stage == "midtrain":
-            text = format_chat(row["messages"])
+            text = format_chat(row["messages"])##===================================
             ids = tokenizer.encode(text, max_length=max_length)
             examples.append((ids, ids.copy()))
+
+
         elif stage == "sft":
             prompt, completion = _assistant_pair(row["messages"])##===================================
-            examples.append(_prompt_completion_ids(tokenizer, prompt, completion, max_length))
-        elif stage == "mopd":
+            examples.append(_prompt_completion_ids(tokenizer, prompt, completion, max_length))##===================================
+
+
+        elif stage == "mopd":##????明显不对--这个是蒸馏
             prompt = format_chat([{"role": "user", "content": row["prompt"]}]) + "<|im_start|>assistant\n"
-            completion = row["teacher_response"] + "<|im_end|>\n"
-            examples.append(_prompt_completion_ids(tokenizer, prompt, completion, max_length))
+            completion = row["teacher_response"] + "<|im_end|>\n"##===================================
+            examples.append(_prompt_completion_ids(tokenizer, prompt, completion, max_length))##===================================
         else:
             raise ValueError(f"{stage} is not a supervised stage")
     return examples
@@ -119,6 +123,8 @@ def train_supervised_stage(
 ) -> dict[str, float | int | str]:
     max_length = int(training_config["max_seq_length"])
     examples = _supervised_examples(stage, rows, tokenizer, max_length)##===================================
+
+
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=float(stage_config["learning_rate"]),
@@ -127,9 +133,11 @@ def train_supervised_stage(
     losses: list[float] = []
     model.train()
     max_steps = int(stage_config["max_steps"])
-    for step in range(max_steps):
+    for step in range(max_steps):##10
         sequences, labels = _next_batch(examples, step, int(training_config["batch_size"]))##===================================
         input_ids, attention_mask, label_tensor = tokenizer.batch(sequences, labels, device=device)
+
+
         output = model(input_ids, attention_mask=attention_mask, labels=label_tensor)
         loss = output["loss"]
         if loss is None or not torch.isfinite(loss):
@@ -161,7 +169,7 @@ def train_group_relative_stage(
     training_config: dict[str, Any],
     device: torch.device,
 ) -> dict[str, float | int | str]:
-    reference = copy.deepcopy(model).to(device).eval()
+    reference = copy.deepcopy(model).to(device).eval()##===================================
     for parameter in reference.parameters():
         parameter.requires_grad_(False)
     optimizer = torch.optim.AdamW(
@@ -169,6 +177,8 @@ def train_group_relative_stage(
         lr=float(stage_config["learning_rate"]),
         weight_decay=float(training_config["weight_decay"]),
     )
+
+
     beta = float(stage_config.get("beta", 0.0))
     losses: list[float] = []
     reward_means: list[float] = []
@@ -177,21 +187,36 @@ def train_group_relative_stage(
     model.train()
     for step in range(max_steps):
         row = rows[step % len(rows)]
-        prompt = format_chat([{"role": "user", "content": row["prompt"]}]) + "<|im_start|>assistant\n"
-        candidates = row["candidates"]
+        prompt = format_chat([{"role": "user", "content": row["prompt"]}]) + "<|im_start|>assistant\n"##===================================
+        candidates = row["candidates"]##===================================
         completions = [candidate["text"] + "<|im_end|>\n" for candidate in candidates]
+
+
+
+        ##===================================##===================================##===================================##===================================
+        ##===================================##===================================##===================================##===================================
+        ##===================================##===================================##===================================##===================================
+        ##===================================##===================================##===================================##===================================
         rewards = torch.tensor([float(candidate["reward"]) for candidate in candidates], device=device)
         advantages = (rewards - rewards.mean()) / rewards.std(unbiased=False).clamp_min(1e-6)
-        log_probs = completion_log_probabilities(model, tokenizer, prompt, completions, max_length, device)##===================================
+
+
+
+        ##===================================##===================================##===================================##===================================
+        ##===================================##===================================##===================================##===================================
+        ##===================================##===================================##===================================##===================================
+        ##===================================##===================================##===================================##===================================
+        log_probs = completion_log_probabilities(model, tokenizer, prompt, completions, max_length, device)##===================================##===================================
         with torch.no_grad():
-            reference_log_probs = completion_log_probabilities(##===================================
+            reference_log_probs = completion_log_probabilities(##===================================##===================================
                 reference, tokenizer, prompt, completions, max_length, device
             )
-        policy_loss = -(advantages.detach() * log_probs).mean()
+        policy_loss = -(advantages.detach() * log_probs).mean()##===================================
         # A stable sequence-level KL proxy keeps this tiny offline exercise near
         # the pre-stage policy.  The full-size route uses TRL's native KL term.
-        kl_proxy = (log_probs - reference_log_probs).pow(2).mean()
-        loss = policy_loss + beta * kl_proxy
+        kl_proxy = (log_probs - reference_log_probs).pow(2).mean()##===================================
+        ##
+        loss = policy_loss + beta * kl_proxy##===================================
         if not torch.isfinite(loss):
             raise FloatingPointError(f"non-finite loss in {stage}: {loss}")
         optimizer.zero_grad(set_to_none=True)
@@ -201,7 +226,7 @@ def train_group_relative_stage(
         losses.append(float(loss.detach().cpu()))
         reward_means.append(float(rewards.mean().cpu()))
     return {
-        "objective": stage_config["objective"],
+        "objective": stage_config["objective"],##objective
         "steps": max_steps,
         "examples": len(rows),
         "initial_loss": losses[0],
@@ -223,16 +248,22 @@ def completion_log_probabilities(
     labels = [example[1] for example in examples]
     input_ids, attention_mask, label_tensor = tokenizer.batch(sequences, labels, device=device)
     assert label_tensor is not None
+
+
     logits = model(input_ids, attention_mask=attention_mask)["logits"]
     shifted_logits = logits[:, :-1]
     shifted_labels = label_tensor[:, 1:]
     valid = shifted_labels.ne(-100)
     safe_labels = shifted_labels.masked_fill(~valid, 0)
+    ##
     token_log_probs = F.log_softmax(shifted_logits.float(), dim=-1).gather(
         -1, safe_labels.unsqueeze(-1)
     ).squeeze(-1)
     lengths = valid.sum(dim=-1).clamp_min(1)
-    return (token_log_probs * valid).sum(dim=-1) / lengths
+    return (token_log_probs * valid).sum(dim=-1) / lengths##===================================##===================================##===================================
+
+
+
 
 def ________(self):pass
 def validate_stage_schemas(data_dir: Path) -> dict[str, int]:
@@ -324,11 +355,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         stage_config = training_config["stages"][stage]
         stage_started = time.perf_counter()
         if stage in {"mixed_rl", "agentic_rl"}:
-            metrics = train_group_relative_stage(##===================================
+            metrics = train_group_relative_stage(##===================================##===================================
                 model, tokenizer, stage, rows, stage_config, training_config, device
             )
         else:
-            metrics = train_supervised_stage(##===================================
+            metrics = train_supervised_stage(##===================================##===================================
                 model, tokenizer, stage, rows, stage_config, training_config, device
             )
         metrics["seconds"] = time.perf_counter() - stage_started
@@ -366,5 +397,7 @@ def main() -> None:
         print(json.dumps(metrics, ensure_ascii=False, indent=2))
 if __name__ == "__main__":
     main()
+# python prepare_data.py --check
 # python train_pipeline.py --smoke --device cpu --no-save
+# python -m unittest -v test_pipeline.py
 

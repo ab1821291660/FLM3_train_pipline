@@ -302,7 +302,10 @@ def main() -> None:
     else:
         write_datasets(args.output_dir)
         check_datasets(args.output_dir)
-
-
 if __name__ == "__main__":
     main()
+# python prepare_data.py --check
+# python train_pipeline.py --smoke --device cpu --no-save
+# python -m unittest -v test_pipeline.py
+
+

@@ -106,9 +106,8 @@ class ByteTokenizer:
         return input_ids.to(device), attention_mask.to(device), None if label_tensor is None else label_tensor.to(device)
 
 
-def format_chat(messages: list[dict]) -> str:
+def format_chat(messages: list[dict]) -> str:##===================================
     """Render a compact ChatML representation compatible with LFM3 concepts."""
-
     parts = ["<|startoftext|>"]
     for message in messages:
         content = message.get("content", "")
@@ -116,6 +115,12 @@ def format_chat(messages: list[dict]) -> str:
             content = json.dumps(content, ensure_ascii=False, sort_keys=True)
         parts.append(f"<|im_start|>{message['role']}\n{content}<|im_end|>\n")
     return "".join(parts)
+# def _assistant_pair(messages: list[dict[str, Any]]) -> tuple[str, str]:
+#     if not messages or messages[-1].get("role") != "assistant":
+#         raise ValueError("assistant-supervised rows must end with an assistant message")
+#     prompt = format_chat(messages[:-1]) + "<|im_start|>assistant\n"##===================================
+#     completion = str(messages[-1].get("content", "")) + "<|im_end|>\n"
+#     return prompt, completion
 
 
 class RMSNorm(nn.Module):
