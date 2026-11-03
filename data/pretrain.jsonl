@@ -1,0 +1,20 @@
+{"domain": "science", "id": "pretrain-01", "phase": "code_math_science_4k", "text": "水在标准大气压下接近 100 摄氏度时沸腾；气压降低时，沸点也会降低。"}
+{"domain": "science", "id": "pretrain-02", "phase": "code_math_science_4k", "text": "光合作用把光能转化为化学能。植物吸收二氧化碳和水，并释放氧气。"}
+{"domain": "math", "id": "pretrain-03", "phase": "code_math_science_4k", "text": "等差数列的第 n 项可写成 a_n=a_1+(n-1)d，前 n 项和为 n(a_1+a_n)/2。"}
+{"domain": "math", "id": "pretrain-04", "phase": "code_math_science_4k", "text": "若三角形两条直角边分别为 3 和 4，则斜边由勾股定理得到 5。"}
+{"domain": "code", "id": "pretrain-05", "phase": "code_math_science_4k", "text": "Python 函数 def square(x): return x * x 接收一个数并返回它的平方。"}
+{"domain": "code", "id": "pretrain-06", "phase": "code_math_science_4k", "text": "A stable sort preserves the relative order of records whose keys compare equal."}
+{"domain": "knowledge", "id": "pretrain-07", "phase": "web_synthetic", "text": "长城由不同时期的防御工程连接发展而来，并不是在同一朝代一次建成。"}
+{"domain": "knowledge", "id": "pretrain-08", "phase": "web_synthetic", "text": "The Pacific Ocean is the largest and deepest of Earth's oceanic divisions."}
+{"domain": "web", "id": "pretrain-09", "phase": "web_synthetic", "text": "产品文档应说明安装条件、最小示例、失败处理以及版本兼容范围。"}
+{"domain": "web", "id": "pretrain-10", "phase": "web_synthetic", "text": "A reliable web form validates input on both the client and the server."}
+{"domain": "reasoning", "id": "pretrain-11", "phase": "web_synthetic", "text": "如果所有蓝色盒子都很轻，而 A 是蓝色盒子，那么可以推出 A 很轻。"}
+{"domain": "reasoning", "id": "pretrain-12", "phase": "web_synthetic", "text": "A valid deduction follows from its premises even when the conclusion is surprising."}
+{"domain": "sql", "id": "pretrain-13", "phase": "web_synthetic", "text": "SQL 的 GROUP BY 会把具有相同分组键的行聚合在一起，HAVING 用于过滤聚合结果。"}
+{"domain": "sql", "id": "pretrain-14", "phase": "web_synthetic", "text": "A transaction groups database operations so they can commit together or roll back together."}
+{"domain": "agent", "id": "pretrain-15", "phase": "web_synthetic", "text": "工具调用前应检查参数类型；工具返回后应基于真实结果回答，而不是假设调用成功。"}
+{"domain": "agent", "id": "pretrain-16", "phase": "web_synthetic", "text": "An agent should stop and report uncertainty when required evidence is unavailable."}
+{"domain": "long_context", "id": "pretrain-17", "phase": "web_synthetic", "text": "会议记录：目标是降低端侧延迟。约束包括内存小于 2GB、离线运行和可审计输出。结论是先做量化，再测真实设备。"}
+{"domain": "long_context", "id": "pretrain-18", "phase": "web_synthetic", "text": "实验日志包含假设、输入、环境、测量值和结论。只有记录完整，结果才容易复现。"}
+{"domain": "multilingual", "id": "pretrain-19", "phase": "web_synthetic", "text": "Bonjour signifie hello en anglais；你好在英语中通常译为 hello。"}
+{"domain": "multilingual", "id": "pretrain-20", "phase": "web_synthetic", "text": "La inteligencia en el dispositivo puede mejorar la privacidad al reducir la transmisión de datos."}

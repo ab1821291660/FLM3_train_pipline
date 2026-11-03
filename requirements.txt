@@ -1,0 +1,2 @@
+# Offline tiny pipeline only; no Hugging Face packages or model download needed.
+torch>=2.3,<3

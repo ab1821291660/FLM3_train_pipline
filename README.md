@@ -1,240 +1,141 @@
+# LFM3 轻量训练流水线复现
 
 
 
 
-1）参考
----- 知乎：：LFM3：最强 2B 的多模态端侧全家桶：：https://zhuanlan.zhihu.com/p/2098861357395337430
-[Liquid AI《Introducing LFM3》](https://www.liquid.ai/blog/lfm3)
-[HF Blog](https://huggingface.co/blog/LiquidAI/lfm3)
-[LFM3-1.7B 模型卡](https://huggingface.co/LiquidAI/LFM3-1.7B)
-，及全网搜索FLM3相关的资料，，你的任务是 构造适配的小批量数据(每个20条)放到data文件夹下，并复现整个训练流水线流程代码，训练代码放到项目根目录下
-2）不要下载大的权重文件到本地
+本项目把用户原文中的 **FLM3** 统一按 Liquid AI 的 **LFM3** 处理。仓库提供两条路径：
 
+- **默认离线路径**：不下载任何模型权重，从随机初始化的 3.8 万（smoke）或 29.5 万参数 tiny LFM3 开始，依次完成六个阶段的真实前向、反向和参数更新。
+- **可选 1.7B LoRA 路径**：对齐 Liquid AI 官方 TRL Notebook 的目标模块和主要超参数；没有本地权重时默认拒绝运行，防止误下载大文件。
 
-## 资料url::
----- 知乎：：LFM3：最强 2B 的多模态端侧全家桶：：https://zhuanlan.zhihu.com/p/2098861357395337430
-[Liquid AI《Introducing LFM3》](https://www.liquid.ai/blog/lfm3)
-[HF Blog](https://huggingface.co/blog/LiquidAI/lfm3)
-[LFM3-1.7B 模型卡](https://huggingface.co/LiquidAI/LFM3-1.7B)
+这不是 Liquid AI 内部训练的精确复刻。官方只公开了阶段、架构、部分 token 规模和微调示例，没有公开 22T token 数据、六个 RL 教师、奖励环境、采样策略、全部超参数和训练基础设施。本仓库的目标是用最少资源复现可观察的**流程与数据契约**。
 
-##=================================== ##===================================
-##=================================== ##===================================
-##=================================== ##===================================
-##=================================== ##===================================
-<div align="center">
-  <img src="assets/cookbook-banner.webp" alt="Liquid AI Cookbook" width="100%" />
-  <p>
-    <a href="https://console.liquid.ai/dashboard"><strong>API</strong></a>
-    &nbsp;&nbsp;&nbsp;
-    <a href="https://playground.liquid.ai/"><strong>Try on Playground</strong></a>
-    &nbsp;&nbsp;&nbsp;
-    <a href="https://docs.liquid.ai/lfm/getting-started/welcome"><strong>Documentation</strong></a>
-  </p>
-  <a href="https://discord.com/invite/liquid-ai"><img src="https://img.shields.io/discord/1385439864920739850?style=for-the-badge&logo=discord&logoColor=white&label=Discord&color=5865F2" alt="Join Discord"></a>
-</div>
-</br>
+## 一分钟跑通
 
-**Examples**, **tutorials**, and **applications** to help you build with our open-weight [LFMs](https://huggingface.co/LiquidAI) on laptops, mobile, and edge devices.
+环境要求：Python 3.10+、PyTorch 2.3+。
 
-## Contents
+```powershell
+# 1. 检查六组数据，每组必须恰好 20 条
+python prepare_data.py --check
 
-- [Desktop Apps](#-desktop-apps)
-- [Browser Apps](#-browser-apps)
-- [Mobile Apps](#-mobile-apps) (Android / iOS)
-- [Fine-Tuning Examples](#-fine-tuning-examples)
-- [Guides](#-guides)
-- [Third-Party Apps Powered by LFM](#third-party-apps-powered-by-lfm)
-- [Community Projects](#-community-projects)
-- [Technical Deep Dives](#-technical-deep-dives)
-- [Contributing](#contributing)
-- [Support](#support)
+# 2. 六阶段离线烟测：每阶段 1 个优化器 step，不保存 checkpoint
+python train_pipeline.py --smoke --device cpu --no-save
 
-## 🖥️ Desktop Apps
+# 3. 单元测试
+python -m unittest -v test_pipeline.py
+```
 
-Python and CLI applications for running LFM models on your laptop or desktop machine.
+完整 tiny 流程会使用每阶段 10 个 step，并把很小的教学 checkpoint 写入 `outputs/tiny-pipeline/`：
 
-| Name | Description | Link |
-|------|-------------|------|
-| Invoice Parser | Extract structured data from invoice images using LFM2-VL-3B | [Code](./examples/invoice-parser/README.md) |
-| Audio Transcription CLI | Real-time audio-to-text transcription using LFM2.5-Audio-1.5B with llama.cpp | [Code](./examples/audio-transcription-cli/) |
-| Flight Search Assistant | Find and book plane tickets using LFM2.5-1.2B-Thinking with tool calling | [Code](./examples/flight-search-assistant/README.md) |
-| Audio Car Cockpit | Voice-controlled car cockpit demo combining LFM2.5-Audio-1.5B with LFM2-1.2B-Tool | [Code](./examples/audio-car-cockpit/README.md) |
-| LocalCowork | On-device AI agent for file ops, security scanning, OCR, and more, powered by LFM2-24B-A2B | [Code](./examples/localcowork/README.md) |
-| Home Assistant | Local home assistant with tool calling, benchmarking, and fine-tuning pipeline using LFM2-350M and LFM2.5-1.2B | [Code](./examples/home-assistant/README.md) |
-| Voice Assistant for Mac | On-device voice assistant for Apple Silicon Macs using LFM2.5-Audio-1.5B and the LEAP SDK | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/leap-ui-demo/macos/LeapVoiceAssistantDemo) |
-| Vision Assistant for Mac | On-device visual language model chat for Apple Silicon Macs using the LEAP SDK | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/macOS/LeapVLMExample/LeapVLMExample) |
+```powershell
+python train_pipeline.py --device auto
+```
 
-## 🌐 Browser Apps
+只运行部分阶段：
 
-Zero-install applications running LFM models directly in the browser via WebGPU and ONNX Runtime Web.
+```powershell
+python train_pipeline.py --stages pretrain midtrain sft --no-save
+```
 
-| Name | Description | Link |
-|------|-------------|------|
-| Tool Calling | Run LFM2 entirely in your browser with WebGPU for in-browser tool calling | [Code](https://huggingface.co/spaces/LiquidAI/LFM2-WebGPU/tree/main) \| [Demo](https://huggingface.co/spaces/LiquidAI/LFM2-WebGPU) |
-| Voice Assistant | Run LFM2.5-Audio-1.5B entirely in your browser for speech recognition, TTS, and conversation | [Code](./examples/audio-webgpu-demo/README.md) \| [Demo](https://huggingface.co/spaces/LiquidAI/LFM2.5-Audio-1.5B-transformers-js) |
-| Live Video Captioning | Real-time video captioning with LFM2.5-VL-1.6B running in-browser using WebGPU | [Code](./examples/vl-webgpu-demo/README.md) \| [Demo](https://huggingface.co/spaces/LiquidAI/LFM2-VL-WebGPU) |
-| Chain-of-Thought Reasoning | Run LFM2.5-1.2B-Thinking entirely in your browser with WebGPU for on-device chain-of-thought reasoning | [Code](https://huggingface.co/spaces/LiquidAI/LFM2.5-1.2B-Thinking-WebGPU/tree/main) \| [Demo](https://huggingface.co/spaces/LiquidAI/LFM2.5-1.2B-Thinking-WebGPU) |
-| Hand & Voice Racer | Browser driving game controlled by hand gestures (MediaPipe) and voice commands (LFM2.5-Audio-1.5B), running fully local | [Code](./examples/hand-voice-racer/README.md) |
-| Road Decider | Pixel-art survival racer where Liquid's d1 decision model dodges traffic against Jev or a human player | [Code](./examples/road-decider/README.md) |
-| LEAP Voice Assistant | On-device voice assistant running in the browser via WebAssembly using the LEAP SDK | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/leap-ui-demo/web) |
+## 六阶段映射
 
-## 📱 Mobile Apps
+| 官方公开阶段 | 本仓库数据 | 本仓库可执行目标 | 复现边界 |
+|---|---|---|---|
+| Main pre-training | `data/pretrain.jsonl` | 全 token 因果语言模型 CE | 20 条合成文本，不是约 18T+ token 原语料 |
+| Mid-training / 长上下文扩展 | `data/midtrain.jsonl` | 工具轨迹 ChatML 因果 CE | 最长 224 byte-token，不是 32K→128K→256K 扩展 |
+| SFT | `data/sft.jsonl` | 只对 assistant 答案计算 CE | 20 条，不是官方 1.75T token |
+| Mixed RL | `data/mixed_rl.jsonl` | 固定候选上的组相对优势 + KL 代理 | 离线教学代理，不是多域 on-policy RL |
+| MOPD | `data/mopd.jsonl` | 六类 specialist response 的序列蒸馏 | 无官方教师 checkpoint，属于 response imitation |
+| Agentic RL | `data/agentic_rl.jsonl` | 工具候选的组相对奖励 + KL 代理 | 不执行浏览器/办公环境，无真实副作用 |
 
-Native examples for deploying LFM2 models on iOS and Android using the [LEAP Edge SDK](https://leap.liquid.ai/docs/edge-sdk/overview). Written for Android (Kotlin) and iOS (Swift), the goal of the Edge SDK is to make Small Language Model deployment as easy as calling a cloud LLM API endpoint.
+官方模型卡还提供 CPT、DPO、GRPO 微调 Notebook。它们是对外可执行的专项适配方法，不等同于官方内部完整后训练算法；本项目的可选 1.7B 路径分别用 SFTTrainer、DPOTrainer、GRPOTrainer 作为简单近似。
 
-### Android
+## 数据文件
 
-| Name | Description | Link |
-|------|-------------|------|
-| LeapChat | Chat app with real-time streaming, persistent history, and modern UI | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/Android/LeapChat) |
-| Voice Assistant | Audio input and output with LFM2.5-Audio-1.5B for on-device AI inference | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/leap-ui-demo/android) |
-| LeapKoogAgent | Integration with Koog framework for AI agent functionality | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/Android/LeapKoogAgent) |
-| SloganApp | Single turn marketing slogan generation with Android Views | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/Android/SloganApp) |
-| ShareAI | Website summary generator | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/Android/ShareAI) |
-| Recipe Generator | Structured output generation with the LEAP SDK | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/Android/RecipeGenerator) |
-| VLM Example | Visual Language Model integration | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/Android/VLMExample) |
+`prepare_data.py` 会确定性生成以下文件，全部位于 `data/`，每个文件 20 条 JSONL：
 
-### iOS
+| 文件 | 主要字段 | 用途 |
+|---|---|---|
+| `pretrain.jsonl` | `text`, `domain` | 科学、数学、代码、知识、工具原则等原始文本 |
+| `midtrain.jsonl` | `messages`, `tools` | agent/tool-call 轨迹和高质量规则 |
+| `sft.jsonl` | `messages`, `category` | QA、JSON、SQL、工具、安全、拒答等监督样本 |
+| `mixed_rl.jsonl` | `prompt`, `candidates[].reward` | 数学、代码、SQL、格式和安全偏好 |
+| `mopd.jsonl` | `teacher_domain`, `teacher_response` | code/math/tool/long-context/agentic/enterprise 教师响应 |
+| `agentic_rl.jsonl` | `tools`, `expected_tool`, `candidates` | 可验证工具选择与参数奖励 |
 
-| Name | Description | Link |
-|------|-------------|------|
-| LeapChat | Chat app with real-time streaming, conversation management, and SwiftUI | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/iOS/LeapChatExample) |
-| LeapSloganExample | Basic LeapSDK integration for text generation in SwiftUI | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/iOS/LeapSloganExample) |
-| Recipe Generator | Structured output generation | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/iOS/RecipeGenerator) |
-| Voice Assistant | Audio input and output with LFM2.5-Audio-1.5B for on-device AI inference | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/leap-ui-demo/ios/LeapVoiceAssistantDemo) |
-| Vision Assistant | Visual language model chat on iOS using the LEAP SDK | [Code](https://github.com/Liquid4All/LeapSDK-Examples/tree/main/iOS/LeapVLMExample) |
-| Telco Triage | Edge-first home internet support assistant with on-device LFM routing, local tools, and cloud-assist handoff | [Code](./examples/telco-triage-ios/README.md) |
+重新生成并立即检查：
 
-## 🎯 Fine-Tuning Examples
+```powershell
+python prepare_data.py
+```
 
-We recommend fine-tuning LFM3 for your specific use case to achieve the best results. Below you'll find Colab notebooks and Python scripts for customizing LFM models with your own data.
+数据仅用于流程验证。20 条样本不足以训练有实际能力的模型，也不应用于衡量泛化效果。
 
-| Name | Framework | Description | Link |
-|------|-----------|-------------|------|
-| **Text Models** | | | |
-| Supervised Fine-Tuning (SFT) for structured extraction | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Fine-tune LFM3-1.7B with LoRA to turn messy documents in many languages into JSON that follows a schema | [Notebook](./finetuning/notebooks/lfm3_sft_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_sft_with_trl.ipynb) |
-| Continued Pre-Training (CPT) for a new language | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Continue pre-training LFM3-1.7B with LoRA on Turkish Wikipedia, a language it doesn't officially support | [Notebook](./finetuning/notebooks/lfm3_cpt_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_cpt_with_trl.ipynb) |
-| Direct Preference Optimization (DPO) for grounded answers | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Teach LFM3-1.7B to answer only from the retrieved documents, and to say so when the answer isn't there | [Notebook](./finetuning/notebooks/lfm3_dpo_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_dpo_with_trl.ipynb) |
-| Group Relative Policy Optimization (GRPO) for tool calling | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Train LFM3-1.7B as a phone assistant that picks the right calls among 108 tools, with a verifiable reward and LoRA | [Notebook](./finetuning/notebooks/lfm3_grpo_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_grpo_with_trl.ipynb) |
-| Continued Pre-Training (CPT) for text completion | [Unsloth](https://github.com/unslothai/unsloth) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/unsloth)) | Teach models domain-specific knowledge and creative writing styles | [Notebook](./finetuning/notebooks/cpt_text_completion_with_unsloth.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/cpt_text_completion_with_unsloth.ipynb) |
-| Continued Pre-Training (CPT) for translation | [Unsloth](https://github.com/unslothai/unsloth) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/unsloth)) | Adapt models to specific languages or translation domains using domain data | [Notebook](./finetuning/notebooks/cpt_translation_with_unsloth.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/cpt_translation_with_unsloth.ipynb) |
-| Supervised Fine-Tuning (SFT) | [Unsloth](https://github.com/unslothai/unsloth) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/unsloth)) | Memory-efficient SFT using Unsloth with LoRA for 2x faster training | [Notebook](./finetuning/notebooks/sft_with_unsloth.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/sft_with_unsloth.ipynb) |
-| Supervised Fine-Tuning (SFT) | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Supervised fine-tuning using Hugging Face TRL library with parameter-efficient LoRA | [Notebook](./finetuning/notebooks/sft_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/sft_with_trl.ipynb) |
-| Supervised Fine-Tuning (SFT) for Mixture-of-Experts | [Halo](https://github.com/whitecircle/halo) ([Docs](https://whitecircle.com/research/halo)) | Supervised fine-tuning of LFM2.5-8B-A1B with two-way expert parallelism using Halo | [Notebook](./finetuning/notebooks/sft_moe_with_halo.ipynb) |
-| Direct Preference Optimization (DPO) | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Align models with human preferences using direct preference optimization with LoRA | [Notebook](./finetuning/notebooks/dpo_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/dpo_with_trl.ipynb) |
-| Antidoom Training (FTPO) | [TRL](https://github.com/huggingface/trl) ([Docs](https://huggingface.co/docs/trl/main/en/customization#change-the-training-objective)) | Eliminate doom loops with final token preference optimization (FTPO) using the [Antidoom](https://github.com/Liquid4All/antidoom) pipeline | [Notebook](./finetuning/notebooks/antidoom_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/antidoom_with_trl.ipynb) |
-| Group Relative Policy Optimization (GRPO) | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Train reasoning models using Group Relative Policy Optimization with rule-based rewards | [Notebook](./finetuning/notebooks/grpo_for_verifiable_tasks.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/grpo_for_verifiable_tasks.ipynb) |
-| Group Relative Policy Optimization (GRPO) | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Train a 350M model for better structured output compliance | [Notebook](./finetuning/notebooks/grpo_with_trl_ifstruct.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/grpo_with_trl_ifstruct.ipynb) |
-| Group Relative Policy Optimization (GRPO) | [Unsloth](https://github.com/unslothai/unsloth) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/unsloth)) | Train reasoning models using Group Relative Policy Optimization for verifiable tasks | [Notebook](./finetuning/notebooks/grpo_with_unsloth.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/grpo_with_unsloth.ipynb) |
-| **Decision Models** | | | |
-| Supervised Fine-Tuning (SFT) | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Learn how to fine-tune a decision model (d1-3B) on your own labels with LoRA, using intent classification on Banking77 as the example | [Notebook](./finetuning/notebooks/sft_for_decision_models_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/sft_for_decision_models_with_trl.ipynb) |
-| Supervised Fine-Tuning (SFT) | [Unsloth](https://github.com/unslothai/unsloth) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/unsloth)) | Learn how to fine-tune a decision model (d1-3B) on your own labels with Unsloth and LoRA, using intent classification on Banking77 as the example | [Notebook](./finetuning/notebooks/sft_for_decision_models_with_unsloth.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/sft_for_decision_models_with_unsloth.ipynb) |
-| **Vision Models** | | | |
-| Supervised Fine-Tuning (SFT) for receipt extraction | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Fine-tune LFM3-VL-2B with LoRA to read photos of receipts into JSON that follows a schema | [Notebook](./finetuning/notebooks/lfm3_vl_sft_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_vl_sft_with_trl.ipynb) |
-| Group Relative Policy Optimization (GRPO) for formula transcription | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Train LFM3-VL-2B with LoRA to transcribe pictures of formulas into LaTeX, with a format reward and a LaTeX similarity reward | [Notebook](./finetuning/notebooks/lfm3_vl_grpo_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_vl_grpo_with_trl.ipynb) |
-| Supervised Fine-Tuning (SFT) | [Unsloth](https://github.com/unslothai/unsloth) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/unsloth)) | Supervised fine-tuning for LFM2-VL models on custom image-text datasets | [Notebook](./finetuning/notebooks/sft_for_vision_language_model_with_unsloth.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/sft_for_vision_language_model_with_unsloth.ipynb) |
-| Supervised Fine-Tuning (SFT) | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Supervised fine-tuning for LFM2.5-VL models using TRL with parameter-efficient LoRA | [Notebook](./finetuning/notebooks/sft_for_vision_language_model_with_trl.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/sft_for_vision_language_model_with_trl.ipynb) |
-| Supervised Fine-Tuning (SFT) | [Halo](https://github.com/whitecircle/halo) ([Docs](https://whitecircle.com/research/halo)) | Supervised fine-tuning for LFM2.5-VL-3B on CPPE-5 for object detection | [Notebook](./finetuning/notebooks/sft_for_vision_language_model_with_halo.ipynb) |
-| Wind Turbine Blade Inspection | [TRL](https://github.com/huggingface/trl) ([Docs](https://docs.liquid.ai/lfm/fine-tuning/trl)) | Fine-tune LFM3-VL-2B with SFT and GRPO to find and classify surface defects on wind turbine blade photos, and compare it with frontier models | [Code](./examples/wind-turbine-inspection/README.md) |
-| Satellite VLM Fine-Tuning | [leap-finetune](https://github.com/Liquid4All/leap-finetune/) | Fine-tune LFM2.5-VL-450M on satellite imagery for VQA, grounding, and captioning using Modal | [Code](./examples/satellite-vlm/README.md) |
-| Wildfire Prevention | [leap-finetune](https://github.com/Liquid4All/leap-finetune/) | Build a wildfire risk detection system using LFM2.5-VL-450M and Sentinel-2 satellite imagery, with fine-tuning and on-device inference | [Code](./examples/wildfire-prevention/README.md) |
-| **Audio Models** | | | |
-| Supervised Fine-Tuning (SFT) for voice commands | [HF Transformers](https://github.com/huggingface/transformers) | Fine-tune LFM3-Audio-2B with LoRA to map spoken smart-home commands directly to function calls | [Notebook](./finetuning/notebooks/lfm3_audio_sft_with_transformers.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_audio_sft_with_transformers.ipynb) |
-| Supervised Fine-Tuning (SFT) for a new voice | [HF Transformers](https://github.com/huggingface/transformers) | Teach LFM3-Audio-2B a new, consistent voice by training its speech output on LJSpeech | [Notebook](./finetuning/notebooks/lfm3_audio_tts_sft_with_transformers.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_audio_tts_sft_with_transformers.ipynb) |
-| LFM2.5-Audio Fine-Tuning | [liquid-audio](https://pypi.org/project/liquid-audio/) | Fine-tune LFM2.5-Audio-1.5B on the OHF-Voice dataset to map speech directly to Home Assistant function calls, with on-device GGUF inference | [Code](./examples/voice-assistant/README.md) |
-| **Omni Models** | | | |
-| Supervised Fine-Tuning (SFT) for voice commands | [HF Transformers](https://github.com/huggingface/transformers) | Fine-tune LFM3-Omni-2B with LoRA to map spoken smart-home commands directly to function calls | [Notebook](./finetuning/notebooks/lfm3_omni_sft_with_transformers.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_omni_sft_with_transformers.ipynb) |
-| Supervised Fine-Tuning (SFT) for spoken image Q&A | [HF Transformers](https://github.com/huggingface/transformers) | Fine-tune LFM3-Omni-2B to answer spoken questions about medical images | [Notebook](./finetuning/notebooks/lfm3_omni_vqa_sft_with_transformers.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/finetuning/notebooks/lfm3_omni_vqa_sft_with_transformers.ipynb) |
-| **Encoder Models** | | | |
-| Document Classification | [HF Transformers](https://github.com/huggingface/transformers) | Fine-tune LFM2.5-Encoder for custom long-document multi-label classification | [Code](./examples/lfm-encoder-classification/) |
+## Tiny LFM3 架构
 
-## 📓 Guides
+`lfm3_tiny.py` 直接用 PyTorch 实现了公开结构中的核心设计：
 
-Notebooks walking through the capabilities of specific LFM models with Hugging Face Transformers.
+- gated short convolution，卷积核宽度 7；
+- sliding-window attention；
+- global attention；
+- grouped-query attention 和逐 head sigmoid gate；
+- global attention 的 Partial RoPE；
+- attention/conv 与 SwiGLU FFN 两侧的 sandwich RMSNorm；
+- tied token embedding / LM head。
 
-| Name | Description | Link |
-|------|-------------|------|
-| Vision Capabilities | Image description, visual question answering, multi-image comparison, text reading, object localization, and tool calling with LFM2.5-VL | [Notebook](./guides/lfm25_vl_image_understanding.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/guides/lfm25_vl_image_understanding.ipynb) |
-| Longevity Models | Interpret clinical, DNA methylation, transcriptomic, proteomic, and genetic aging data with LFM2-1.2B-Longevity and LFM2-2.6B-Longevity | [Notebook](./guides/lfm2_longevity.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/cookbook/blob/main/guides/lfm2_longevity.ipynb) |
+默认 6 层教学配置是 `C-C-F-C-S-C`。`--smoke` 缩为 `C-S-F`，但仍覆盖三类 sequence operator。离线 tokenizer 是 UTF-8 byte tokenizer，因此不依赖 Hugging Face，也不会触发网络请求。仓库中的 `LiquidAI/LFM3-1.7B/` 只含官方配置、Tokenizer 和模型代码，**不含权重**。
 
-## Third-Party Apps Powered by LFM
+## 可选的 1.7B LoRA 路径
 
-Production and open-source applications that support LFM models as an inference backend, among other providers.
+先只检查训练计划；该命令不会导入 Transformers、不会联网：
 
-| Name | Description | Link |
-|------|-------------|------|
-| DeepCamera | Open-source AI camera system for local vision intelligence with facial recognition, person re-ID, and edge deployment on Jetson and Raspberry Pi | [Code](https://github.com/SharpAI/DeepCamera) |
-| Osaurus | Native macOS AI harness for managing agents, memory, tools, and identity locally, with support for LFM models via MLX on Apple Silicon | [Code](https://github.com/osaurus-ai/osaurus) |
-| SelfLink   | Native iOS privacy-first journaling app | [Website](https://www.realityplay.io/selflink) |
+```powershell
+python train_lora.py --dry-run
+```
 
-## 🌟 Community Projects
+若以后已在专用训练机上准备好本地 `LFM3-1.7B-Base` checkpoint，可运行：
 
-Open-source projects built by the community showcasing LFMs with real use cases.
+```powershell
+python train_lora.py --local-model-dir D:\models\LFM3-1.7B --stages sft
+```
 
-### Fine-tuning
+仅有配置和 tokenizer 的目录会被拒绝。远程模型 ID 也会被拒绝，除非操作者额外传入显式下载开关；本项目没有执行该开关。LoRA adapter 默认保存到 `outputs/lora-pipeline/`，不会合并并复制完整 1.7B 权重。
 
-| Name | Description | Link |
-|------|-------------|------|
-| LFM2.5 Mobile Actions | LoRA fine-tuned LFM2.5-1.2B that translates natural language into Android OS function calls for on-device mobile action recognition | [Code](https://github.com/Mandark-droid/LFM2.5-1.2B-Instruct-mobile-actions) |
-| Food Images Fine-tuning | Fine-tune LFM models on food image datasets | [Code](https://github.com/benitomartin/food-images-finetuning) |
-| LFM2-KoEn-Tuning | Fine-tuned LFM2 1.2B for Korean-English translation | [Code](https://github.com/gyunggyung/LFM2-KoEn-Tuning) |
-| SFT + DPO Fine-tuning | Teaching a 1.2B model to be a grumpy Italian chef: SFT + DPO fine-tuning with Unsloth | [Code](https://github.com/benitomartin/grumpy-chef-finetuning-dpo) |
-| LFM2-2.6B Mr. Tic Tac Toe | Fine-tune LFM2-2.6B with reinforcement learning to play tic-tac-toe | [Code](https://github.com/anakin87/llm-rl-environments-lil-course) |
+官方 Notebook 使用的依赖版本记录在 `requirements-lora.txt`；默认 tiny 路径只需 `requirements.txt`。安装依赖不等于下载模型权重。
 
-### Deployment
+## 目录说明
 
-| Name | Description | Link |
-|------|-------------|------|
-| LFM-2.5 Thinking on Web | Run LFM2.5-1.2B reasoning model locally in the browser via WebGPU and Transformers.js | [Code](https://github.com/sitammeur/lfm2.5-thinking-web) |
-| LFM-2.5 JP on Web | Run LFM2.5-1.2B Japanese model locally in the browser via WebGPU and Transformers.js | [Code](https://github.com/sitammeur/lfm2.5-jp-web) |
-| barq-web-rag | Browser-based RAG app for document Q&A with LFM2.5-1.2B-Thinking running fully local via WebGPU | [Code](https://github.com/YASSERRMD/barq-web-rag) |
-| Tauri Plugin LEAP AI | Tauri plugin to integrate LEAP and Liquid LFMs into desktop and mobile apps | [Crate](https://crates.io/crates/tauri-plugin-leap-ai) |
-| Chat with LEAP SDK | LEAP SDK integration for React Native | [Code](https://github.com/glody007/expo-leap-sdk) |
+```text
+.
+├── data/                    # 6 × 20 条小数据
+├── LiquidAI/LFM3-1.7B/     # 无权重的官方配置/Tokenizer/模型代码
+├── finetuning/              # 收集的官方微调 Notebook
+├── lfm3_tiny.py             # tiny tri-hybrid 模型
+├── prepare_data.py          # 数据生成与校验
+├── pipeline_config.json     # tiny 模型和六阶段配置
+├── train_pipeline.py        # 默认离线六阶段入口
+├── train_lora.py            # 下载保护的可选 1.7B LoRA 入口
+└── test_pipeline.py         # 数据、架构和下载保护测试
+```
 
-### End-to-End Projects
+## 公开资料与实现依据
 
-| Name | Description | Link |
-|------|-------------|------|
-| Image Classification on Edge | Fine-tune and deploy a local VLM for fast, accurate image classification on edge devices | [Code](https://github.com/Paulescu/image-classification-with-local-vlms) |
-| Chess Game with Small LMs | Fine-tune and deploy a small language model to play chess | [Code](https://github.com/Paulescu/chess-game) |
-| Private Doc Q&A | On-device document Q&A with RAG and voice input | [Code](https://github.com/chintan-projects/private-doc-qa) |
-| Photo Triage Agent | Private photo library cleanup using LFM vision model | [Code](https://github.com/chintan-projects/photo-triage-agent) |
-| Tiny-MoA | Mixture of agents on CPU with LFM2.5 Brain (1.2B) | [Code](https://github.com/gyunggyung/Tiny-MoA) |
-| LFM-Scholar | Automated literature review agent for finding and citing papers | [Code](https://github.com/gyunggyung/LFM-Scholar) |
-| Private Summarizer | 100% local text summarization with multi-language support | [Code](https://github.com/Private-Intelligence/private_summarizer) |
-| TranslatorLens | Offline translation camera for real-time text translation | [Code](https://github.com/linmx0130/TranslatorLens) |
-| Meeting Intelligence CLI | CLI tool for meeting transcription and analysis | [Code](https://github.com/chintan-projects/meeting-prompter) |
-| grosme | CLI grocery assistant that finds Walmart product matches using an LFM-2.5 tool-calling agent via Ollama | [Code](https://github.com/earl562/grosme) |
-| Discord Moderator | Use LFM2.5-1.2B to screen messages for suspicious content | [Code](https://github.com/badluma/liquid-mod) |
-| BookMind | Offline RAG study assistant for asking questions and generating exercises from PDF textbooks, powered by LFM2-2.6B | [Code](https://github.com/Ksirailway-base/BookMind) |
-| Liquid-CLI | Fine-tune and run Liquid AI's LFM2-8B-A1B as a local terminal agent | [Code](https://github.com/gyunggyung/Liquid-CLI) |
-| LFM Podcast Studio | Turn any PDF into a two-host podcast episode locally using LFM2.5-Audio TTS via llama.cpp | [Code](https://github.com/nikhilprasanth/LFM-Podcast-Studio) |
-| GalamseyWatch | Two-layer agentic Earth observation over Sentinel-2 imagery for illegal mining detection in Ghana, powered by LFM2.5-VL-450M and LFM2-2.6B | [Code](https://github.com/samadon1/GalamseyWatch) |
-| Liquid Lens | Detects water anomalies in orbit by combining fast spectral filtering with conditional LFM2.5-VL visual insights on the SimSat orbital simulator | [Code](https://github.com/LiquidLensSystems/water-vlm) |
+- [Liquid AI: Introducing LFM3](https://www.liquid.ai/blog/lfm3)
+- [Hugging Face / LiquidAI: Build specialized multimodal models with LFM3](https://huggingface.co/blog/LiquidAI/lfm3)
+- [LiquidAI/LFM3-1.7B 模型卡](https://huggingface.co/LiquidAI/LFM3-1.7B)
+- [Liquid4All/cookbook 微调示例](https://github.com/Liquid4All/cookbook/tree/main/finetuning/notebooks)
+- [知乎参考文章](https://zhuanlan.zhihu.com/p/2098861357395337430)
 
-## 🕐 Technical Deep Dives
+截至 2026-11-03，公开资料给出的 1.7B 文本 backbone 为 24 层：13 层 gated short convolution、5 层 256-window SWA、6 层 global attention。官方预训练图进一步分为约 15T web/synthetic、3T code/math/science（4K context）、3T curated agentic（32K）、500B（128K）和 50B（256K），合计口径为 22T token；后训练顺序为 SFT、Mixed RL、MOPD、Agentic RL。`pretrain.jsonl` 的 `phase` 与 `midtrain.jsonl` 的 `context_phase` 只记录对应关系，不宣称小样本真的达到该上下文长度。
 
-Recorded sessions (~60 minutes) covering advanced topics and hands-on implementations.
+## 已验证与未验证
 
-| Date | Topic | Link |
-|------|-------|------|
-| 2025-11-06 | Fine-tuning LFM2-VL for image classification | [Video](https://www.youtube.com/watch?v=00IK9apncCg) |
-| 2025-11-27 | Building a 100% local Audio-to-Speech CLI with LFM2-Audio | [Video](https://www.youtube.com/watch?v=yeu077gPmCA) |
-| 2025-12-26 | Fine-tuning LFM2-350M for browser control with GRPO and OpenEnv | [Video](https://www.youtube.com/watch?v=gKQ08yee3Lw) |
-| 2026-01-22 | Local video-captioning with LFM2.5-VL-1.6B and WebGPU | [Video](https://www.youtube.com/watch?v=xsWARHFoA3E) |
-| 2026-03-05 | Build your own local AI coding assistant | [Video](https://www.youtube.com/watch?v=6JEm1IxcxEw) |
-| 2026-04-22 | Let's build a wildfire detection system with a Vision Language Model and satellite images | [Video](https://www.youtube.com/watch?v=LOIDYl5fdb8) |
-| 2026-06-12 | Building on-device voice agents | [Video](https://www.youtube.com/watch?v=0YQquPG-9R8) |
+本仓库当前已验证：
 
-Join the next session! Head to the `#live-events` channel on [Discord](https://discord.com/invite/liquid-ai).
+- 六个 JSONL 文件均为合法 UTF-8，且各 20 条、ID 唯一；
+- tiny tri-hybrid 模型前向、loss、反向梯度均为有限值；
+- 六个阶段在 CPU 上按顺序完成 optimizer step；
+- 1.7B 入口在仅有配置而没有权重时会拒绝运行；
+- 验证过程中没有下载或生成大权重文件。
 
-## Contributing
-
-We welcome contributions! Open a PR with a link to your project GitHub repo in the Community Projects section.
-
-[![Contributors](https://contrib.rocks/image?repo=Liquid4All/cookbook)](https://github.com/Liquid4All/cookbook/graphs/contributors)
-
-## Support
-
-- 📖 [Liquid AI Documentation](https://docs.liquid.ai/)
-- 💬 [Join our community on Discord](https://discord.com/invite/liquid-ai)
+未验证：真实 LFM3-1.7B LoRA 训练、官方规模训练、256K 上下文、多机训练、真实 agent 环境、官方 benchmark 或端侧部署性能。

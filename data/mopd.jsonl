@@ -1,0 +1,20 @@
+{"id": "mopd-01", "prompt": "Python 如何去重并保留顺序？", "teacher_domain": "code", "teacher_response": "可用 list(dict.fromkeys(items))；字典会按插入顺序保留键。"}
+{"id": "mopd-02", "prompt": "解释二分查找的前提。", "teacher_domain": "code", "teacher_response": "输入必须按比较规则有序，这样每次比较才能排除一半区间。"}
+{"id": "mopd-03", "prompt": "解方程 2x+4=10。", "teacher_domain": "math", "teacher_response": "两边减 4 得 2x=6，再除以 2，所以 x=3。"}
+{"id": "mopd-04", "prompt": "圆面积公式是什么？", "teacher_domain": "math", "teacher_response": "A=πr²，其中 r 是半径。"}
+{"id": "mopd-05", "prompt": "查询库存前需要哪些参数？", "teacher_domain": "tool_use", "teacher_response": "至少需要可唯一定位商品的 SKU；若还按仓库区分，则也需要仓库标识。"}
+{"id": "mopd-06", "prompt": "工具调用返回空结果怎么办？", "teacher_domain": "tool_use", "teacher_response": "把空结果视为真实结果，说明未找到，并根据任务决定是否调整条件，而不是虚构数据。"}
+{"id": "mopd-07", "prompt": "长文中同名实体很多，抽取时如何减少混淆？", "teacher_domain": "long_context", "teacher_response": "保留实体附近上下文和唯一标识，建立跨段引用，再对冲突字段做来源核对。"}
+{"id": "mopd-08", "prompt": "摘要如何避免遗漏约束？", "teacher_domain": "long_context", "teacher_response": "先提取目标、硬约束、决定和未决项，再压缩表达，并逐项与原文核对。"}
+{"id": "mopd-09", "prompt": "多步任务中何时应停止？", "teacher_domain": "agentic", "teacher_response": "目标达成、达到明确终止条件，或遇到需要新授权且无法安全继续时应停止。"}
+{"id": "mopd-10", "prompt": "写操作后怎样确认成功？", "teacher_domain": "agentic", "teacher_response": "读取系统返回的持久化标识，并用独立查询核验最终状态。"}
+{"id": "mopd-11", "prompt": "审批流为何要记录操作者？", "teacher_domain": "enterprise", "teacher_response": "操作者记录支持审计、责任追踪和异常回溯。"}
+{"id": "mopd-12", "prompt": "报表中的实时值和快照值怎样标注？", "teacher_domain": "enterprise", "teacher_response": "同时标注采集时间、时区和数据口径，避免把历史快照当作当前状态。"}
+{"id": "mopd-13", "prompt": "何时使用生成器？", "teacher_domain": "code", "teacher_response": "当数据可逐项产生或规模较大时，生成器能延迟计算并降低峰值内存。"}
+{"id": "mopd-14", "prompt": "0.125 写成最简分数。", "teacher_domain": "math", "teacher_response": "0.125=125/1000，约分后是 1/8。"}
+{"id": "mopd-15", "prompt": "日历创建事件后返回什么？", "teacher_domain": "tool_use", "teacher_response": "返回规范化后的时间、时区和事件标识，便于用户核对。"}
+{"id": "mopd-16", "prompt": "如何验证长上下文中的数字结论？", "teacher_domain": "long_context", "teacher_response": "回到数字所在原段，核对单位、时间范围、分母和计算过程，并保留引用位置。"}
+{"id": "mopd-17", "prompt": "代理如何处理工具超时？", "teacher_domain": "agentic", "teacher_response": "区分未知状态与失败；安全重试前检查幂等性，否则查询状态或请求用户决定。"}
+{"id": "mopd-18", "prompt": "为什么生产变更需要回滚方案？", "teacher_domain": "enterprise", "teacher_response": "回滚方案能在指标恶化时快速恢复已知稳定状态，降低故障持续时间。"}
+{"id": "mopd-19", "prompt": "平均数是否一定是样本中的某个值？", "teacher_domain": "math", "teacher_response": "不一定；平均数是总和除以数量，可能不等于任何一个样本值。"}
+{"id": "mopd-20", "prompt": "单元测试和集成测试有何区别？", "teacher_domain": "code", "teacher_response": "单元测试隔离验证小组件，集成测试验证多个组件协作及其边界。"}
