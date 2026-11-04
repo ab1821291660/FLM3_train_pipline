@@ -6,13 +6,10 @@ private 22T-token pre-training and post-training corpora.
 """
 
 from __future__ import annotations
-
 import argparse
 import json
 from pathlib import Path
 from typing import Any
-
-
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 EXPECTED_FILES = (
@@ -23,8 +20,23 @@ EXPECTED_FILES = (
     "mopd.jsonl",
     "agentic_rl.jsonl",
 )
+def check_datasets(data_dir: Path = DATA_DIR) -> None:
+    for filename in EXPECTED_FILES:
+        path = data_dir / filename
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        with path.open("r", encoding="utf-8") as handle:
+            rows = [json.loads(line) for line in handle if line.strip()]
+        if len(rows) != 20:
+            raise ValueError(f"{path} must contain exactly 20 rows, got {len(rows)}")
+        ids = [row.get("id") for row in rows]
+        if len(set(ids)) != 20 or any(value is None for value in ids):
+            raise ValueError(f"{path} needs 20 unique non-empty ids")
+        print(f"ok    {len(rows):2d} rows <- {path}")
 
 
+
+def ________分6部分(self):pass
 def _messages(user: str, assistant: str, system: str = "你是一个准确、简洁的端侧助手。") -> list[dict[str, str]]:
     return [
         {"role": "system", "content": system},
@@ -60,8 +72,8 @@ def build_pretrain() -> list[dict[str, Any]]:
         {
             "id": f"pretrain-{i:02d}",
             "domain": domain,
-            "phase": "code_math_science_4k" if domain in {"code", "math", "science"} else "web_synthetic",
-            "text": text,
+            "phase": "code_math_science_4k" if domain in {"code", "math", "science"}  else "web_synthetic",
+            "text": text,##===================================
         }
         for i, (domain, text) in enumerate(items, 1)
     ]
@@ -101,7 +113,7 @@ def build_midtrain() -> list[dict[str, Any]]:
                     "curated_agentic_32k" if i <= 16 else "long_context_128k" if i <= 19 else "long_context_256k"
                 ),
                 "tools": [{"name": tool, "description": policy}],
-                "messages": _messages(user, f"<tool_call>{call}</tool_call>", f"你是工具助手。规则：{policy}"),
+                "messages": _messages(user, f"<tool_call>{call}</tool_call>", f"你是工具助手。规则：{policy}"),##===================================
             }
         )
     return rows
@@ -131,7 +143,8 @@ def build_sft() -> list[dict[str, Any]]:
         ("concise", "一句话解释 LoRA。", "LoRA 通过训练少量低秩适配参数来低成本调整大模型，而通常冻结原始权重。"),
     ]
     return [
-        {"id": f"sft-{i:02d}", "category": category, "messages": _messages(user, answer)}
+        {"id": f"sft-{i:02d}", "category": category,
+         "messages": _messages(user, answer)}##===================================
         for i, (category, user, answer) in enumerate(examples, 1)
     ]
 
@@ -165,10 +178,10 @@ def build_mixed_rl() -> list[dict[str, Any]]:
             {
                 "id": f"mixed-rl-{i:02d}",
                 "domain": domain,
-                "prompt": prompt,
-                "candidates": [
-                    {"text": good, "reward": 1.0},
-                    {"text": bad, "reward": -1.0},
+                "prompt": prompt,##===================================
+                "candidates": [##===================================
+                    {"text": good, "reward": 1.0},##===================================##===================================
+                    {"text": bad, "reward": -1.0},##===================================##===================================
                 ],
                 "reward_notes": "正确性/格式奖励，并对冗长或不安全行为惩罚。",
             }
@@ -203,8 +216,8 @@ def build_mopd() -> list[dict[str, Any]]:
         {
             "id": f"mopd-{i:02d}",
             "teacher_domain": domain,
-            "prompt": prompt,
-            "teacher_response": response,
+            "prompt": prompt,##===================================
+            "teacher_response": response,##===================================
         }
         for i, (domain, prompt, response) in enumerate(examples, 1)
     ]
@@ -242,13 +255,13 @@ def build_agentic_rl() -> list[dict[str, Any]]:
             {
                 "id": f"agentic-rl-{i:02d}",
                 "domain": domain,
-                "prompt": prompt,
-                "tools": [tool, wrong_tool],
-                "expected_tool": tool,
+                "prompt": prompt,##===================================
+                "tools": [tool, wrong_tool],##===================================
+                "expected_tool": tool,##===================================
                 "candidates": [
-                    {"text": good, "reward": 1.0},
-                    {"text": partial, "reward": 0.2},
-                    {"text": bad, "reward": -1.0},
+                    {"text": good, "reward": 1.0},##===================================
+                    {"text": partial, "reward": 0.2},##===================================
+                    {"text": bad, "reward": -1.0},##===================================
                 ],
                 "success_criteria": "工具名和参数均匹配；未执行真实外部副作用。",
             }
@@ -256,6 +269,7 @@ def build_agentic_rl() -> list[dict[str, Any]]:
     return rows
 
 
+def ________all(self):pass
 def datasets() -> dict[str, list[dict[str, Any]]]:
     return {
         "pretrain.jsonl": build_pretrain(),
@@ -265,43 +279,24 @@ def datasets() -> dict[str, list[dict[str, Any]]]:
         "mopd.jsonl": build_mopd(),
         "agentic_rl.jsonl": build_agentic_rl(),
     }
-
-
 def write_datasets(output_dir: Path = DATA_DIR) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    for filename, rows in datasets().items():
+    for filename, rows in datasets().items():##===================================
         path = output_dir / filename
         with path.open("w", encoding="utf-8", newline="\n") as handle:
             for row in rows:
                 handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
         print(f"wrote {len(rows):2d} rows -> {path}")
-
-
-def check_datasets(data_dir: Path = DATA_DIR) -> None:
-    for filename in EXPECTED_FILES:
-        path = data_dir / filename
-        if not path.is_file():
-            raise FileNotFoundError(path)
-        with path.open("r", encoding="utf-8") as handle:
-            rows = [json.loads(line) for line in handle if line.strip()]
-        if len(rows) != 20:
-            raise ValueError(f"{path} must contain exactly 20 rows, got {len(rows)}")
-        ids = [row.get("id") for row in rows]
-        if len(set(ids)) != 20 or any(value is None for value in ids):
-            raise ValueError(f"{path} needs 20 unique non-empty ids")
-        print(f"ok    {len(rows):2d} rows <- {path}")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=DATA_DIR)
     parser.add_argument("--check", action="store_true", help="validate existing JSONL files instead of writing them")
     args = parser.parse_args()
     if args.check:
-        check_datasets(args.output_dir)
+        check_datasets(args.output_dir)##========
     else:
-        write_datasets(args.output_dir)
-        check_datasets(args.output_dir)
+        write_datasets(args.output_dir)##===================================
+        check_datasets(args.output_dir)##========
 if __name__ == "__main__":
     main()
 # python prepare_data.py --check

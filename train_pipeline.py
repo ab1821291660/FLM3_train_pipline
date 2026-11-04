@@ -21,6 +21,14 @@ import torch.nn.functional as F
 from lfm3_tiny import ByteTokenizer, TinyLFM3Config, TinyLFM3ForCausalLM, format_chat
 
 from prepare_data import EXPECTED_FILES, check_datasets##===================================
+# EXPECTED_FILES = (
+#     "pretrain.jsonl",
+#     "midtrain.jsonl",
+#     "sft.jsonl",
+#     "mixed_rl.jsonl",
+#     "mopd.jsonl",
+#     "agentic_rl.jsonl",
+# )
 ROOT = Path(__file__).resolve().parent
 STAGE_ORDER = ("pretrain", "midtrain", "sft", "mixed_rl", "mopd", "agentic_rl")
 STAGE_FILES = dict(zip(STAGE_ORDER, EXPECTED_FILES, strict=True))
@@ -84,7 +92,7 @@ def _supervised_examples(
         if stage == "pretrain":
             ids = tokenizer.encode(row["text"], max_length=max_length)
             examples.append((ids, ids.copy()))
-        elif stage == "midtrain":
+        elif stage == "midtrain":##??工具调用
             text = format_chat(row["messages"])##===================================
             ids = tokenizer.encode(text, max_length=max_length)
             examples.append((ids, ids.copy()))
