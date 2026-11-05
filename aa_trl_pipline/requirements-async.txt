@@ -1,0 +1,3 @@
+# Linux + CUDA only. Install vLLM first, then transformers>=5.2.0 as documented by TRL.
+-r requirements-openenv.txt
+vllm

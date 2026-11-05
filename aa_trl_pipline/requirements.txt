@@ -1,0 +1,6 @@
+# Install a CUDA-compatible PyTorch build separately for the target machine.
+trl>=1.17.1
+transformers>=5.2.0
+datasets>=4.7.0
+accelerate>=1.10.0
+jmespath>=1.0.1
