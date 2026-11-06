@@ -31,6 +31,7 @@ SHIPPING_FEES = {
 }
 
 
+def ____辅助函数(self):pass
 def _money(value: Decimal | str | int | float) -> str:
     return str(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
@@ -39,6 +40,7 @@ def _json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)
 
 
+def ____4个工具(self):pass
 def lookup_product(sku: str) -> str:
     """Look up one product in the read-only catalog.
 
@@ -51,7 +53,8 @@ def lookup_product(sku: str) -> str:
 
     if sku not in CATALOG:
         raise ValueError(f"unknown sku: {sku}")
-    return _json({"sku": sku, **CATALOG[sku]})
+    return _json({"sku": sku,
+                  **CATALOG[sku]})
 
 
 def calculate_line_total(sku: str, quantity: int) -> str:
@@ -72,10 +75,12 @@ def calculate_line_total(sku: str, quantity: int) -> str:
     if quantity > int(CATALOG[sku]["stock"]):
         raise ValueError(f"insufficient stock for {sku}")
     total = Decimal(CATALOG[sku]["price"]) * quantity
-    return _json({"sku": sku, "quantity": quantity, "line_total": _money(total)})
+    return _json({"sku": sku,
+                  "quantity": quantity,
+                  "line_total": _money(total)})
 
 
-def shipping_quote(city: str, merchandise_total: float) -> str:
+def shipping_quote(city: str, merchandise_total: float) -> str:##订单满300 CNY免运费;否则按城市价格计算。
     """Quote shipping after the merchandise subtotal is known.
 
     Orders of at least 300 CNY ship free; otherwise the city rate applies.
@@ -92,7 +97,8 @@ def shipping_quote(city: str, merchandise_total: float) -> str:
         raise ValueError(f"unsupported city: {city}")
     subtotal = Decimal(str(merchandise_total))
     fee = Decimal("0") if subtotal >= Decimal("300") else Decimal(SHIPPING_FEES[city])
-    return _json({"city": city, "shipping_fee": _money(fee)})
+    return _json({"city": city,
+                  "shipping_fee": _money(fee)})
 
 
 def calculate_grand_total(merchandise_total: float, shipping_fee: float) -> str:
@@ -107,11 +113,11 @@ def calculate_grand_total(merchandise_total: float, shipping_fee: float) -> str:
     """
 
     total = Decimal(str(merchandise_total)) + Decimal(str(shipping_fee))
-    return _json({"grand_total": _money(total), "currency": "CNY"})
+    return _json({"grand_total": _money(total),
+                  "currency": "CNY"})
 
 
-TOOLS = [lookup_product, calculate_line_total, shipping_quote, calculate_grand_total]
-
+TOOLS = [lookup_product, calculate_line_total, shipping_quote, calculate_grand_total]##===================================
 
 TOOL_SCHEMAS = [
     {
@@ -178,6 +184,7 @@ TOOL_SCHEMAS = [
 ]
 
 
+def ____总计算工具(self):pass
 def order_totals(sku_a: str, qty_a: int, sku_b: str, qty_b: int, city: str) -> dict[str, str]:
     """Compute oracle totals for fixture generation and environment verification."""
 

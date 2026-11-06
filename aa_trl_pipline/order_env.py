@@ -142,19 +142,24 @@ class OrderFulfillmentEnv:
 def replay_oracle(row: dict[str, object]) -> tuple[str, float]:
     """Execute the known-good multi-turn path used by tests and data checks."""
     env = OrderFulfillmentEnv()##===================================
-    env.reset(
+    env.reset(##===================================
         sku_a=str(row["sku_a"]),
         qty_a=int(row["qty_a"]),
         sku_b=str(row["sku_b"]),
         qty_b=int(row["qty_b"]),
         city=str(row["city"]),
-        expected_total=str(row["expected_total"]),
+        expected_total=str(row["expected_total"]),##===================================##===================================
     )
+
+
     env.inspect_product(str(row["sku_a"]))
     env.add_to_cart(str(row["sku_a"]), int(row["qty_a"]))
     env.inspect_product(str(row["sku_b"]))
     env.add_to_cart(str(row["sku_b"]), int(row["qty_b"]))
     env.set_destination(str(row["city"]))
+
+
     result = env.checkout()##===================================
-    return result, env.get_reward()##===================================
+    return result, \
+           env.get_reward()##===================================
 

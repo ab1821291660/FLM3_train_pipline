@@ -24,7 +24,7 @@ def completion_text(completion: Any) -> str:
     """Extract assistant-facing text from standard or conversational outputs."""
 
     texts: list[str] = []
-    for value in _walk(completion):
+    for value in _walk(completion):##===================================
         if isinstance(value, dict) and isinstance(value.get("content"), str):
             if value.get("role") in {None, "assistant"}:
                 texts.append(value["content"])
@@ -32,12 +32,11 @@ def completion_text(completion: Any) -> str:
             texts.append(value)
     return "\n".join(texts)
 
-
 def called_tools(completion: Any) -> set[str]:
     """Collect function names from tool-call messages in a rollout transcript."""
 
     names: set[str] = set()
-    for value in _walk(completion):
+    for value in _walk(completion):##===================================
         if not isinstance(value, dict):
             continue
         function = value.get("function")
@@ -48,6 +47,9 @@ def called_tools(completion: Any) -> set[str]:
     return names
 
 
+
+
+def ________(self):pass
 def exact_total_reward(
     completions: list[Any], expected_total: list[str], **kwargs: Any
 ) -> list[float]:
@@ -56,8 +58,8 @@ def exact_total_reward(
     del kwargs
     rewards: list[float] = []
     for completion, expected in zip(completions, expected_total):
-        matches = TOTAL_PATTERN.findall(completion_text(completion))
-        rewards.append(float(bool(matches) and matches[-1] == str(expected)))
+        matches = TOTAL_PATTERN.findall(completion_text(completion))##===================================
+        rewards.append(float(bool(matches) and matches[-1] == str(expected)))##金额是否一致
     return rewards
 
 
@@ -68,13 +70,15 @@ def required_tools_reward(
 
     del kwargs
     return [
-        float(set(required).issubset(called_tools(completion)))
+        float(set(required).issubset(called_tools(completion)))##===================================##===================================
         for completion, required in zip(completions, required_tools)
     ]
+
 
 
 def final_format_reward(completions: list[Any], **kwargs: Any) -> list[float]:
     """Reward a machine-checkable final answer regardless of its numeric value."""
 
     del kwargs
-    return [float(bool(TOTAL_PATTERN.search(completion_text(item)))) for item in completions]
+    return [float(bool(TOTAL_PATTERN.search(completion_text(item)))) for item in completions]##===================================
+

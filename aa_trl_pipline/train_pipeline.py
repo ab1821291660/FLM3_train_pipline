@@ -13,11 +13,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from aa_trl_pipline import STAGE_ORDER
+
 from aa_trl_pipline.order_env import OrderFulfillmentEnv
+from aa_trl_pipline import STAGE_ORDER
 from aa_trl_pipline.prepare_data import DATA_DIR, STAGE_FILES, load_jsonl, validate_datasets
-from aa_trl_pipline.rewards import exact_total_reward, final_format_reward, required_tools_reward
-from aa_trl_pipline.toolkit import TOOLS
+from aa_trl_pipline.rewards import exact_total_reward, final_format_reward, required_tools_reward##===================================
+from aa_trl_pipline.toolkit import TOOLS##===================================
 
 
 ROOT = Path(__file__).resolve().parent
@@ -40,7 +41,7 @@ def resolve_model_source(value: str, allow_model_download: bool, label: str) -> 
     path = Path(value).expanduser()
     if path.exists():
         resolved = path.resolve()
-        if not has_checkpoint(resolved):
+        if not has_checkpoint(resolved):##===================================
             raise FileNotFoundError(f"{label} path has no checkpoint weights: {resolved}")
         return str(resolved)
     if not allow_model_download:
@@ -55,13 +56,14 @@ def selected_stages(values: list[str]) -> tuple[str, ...]:
     return STAGE_ORDER if values == ["all"] else tuple(values)
 
 
-def ____辅助函数(self):pass
+def ____辅助函数(self):
+    pass
 def stage_payload(stage: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Keep only columns consumed by the corresponding trainer or environment."""
     if stage == "sft":##===================================
         return [{"messages": row["messages"], "tools": row["tools"]} for row in rows]
     if stage == "distillation":##===================================
-        return [{"prompt": row["prompt"]} for row in rows]
+        return [{"prompt": row["prompt"]} for row in rows]##tools=TOOLS工具在DistillationTrainer附带
     if stage == "grpo_tools":##===================================
         return [
             {
@@ -78,9 +80,6 @@ def stage_payload(stage: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]
     raise ValueError(stage)
 
 
-
-
-
 def _dataset_from_rows(rows: list[dict[str, Any]], mixed_json: bool = False) -> Any:
     from datasets import Dataset
 
@@ -94,9 +93,9 @@ def _dataset_from_rows(rows: list[dict[str, Any]], mixed_json: bool = False) -> 
 
 
 def _save(trainer: Any, tokenizer: Any, output_dir: Path) -> None:
-    trainer.train()
-    trainer.save_model(str(output_dir))
-    tokenizer.save_pretrained(str(output_dir))
+    trainer.train()##===================================
+    trainer.save_model(str(output_dir))##===================================
+    tokenizer.save_pretrained(str(output_dir))##===================================
 
 def _common_kwargs(args: argparse.Namespace, stage: str) -> dict[str, Any]:
     steps = 1 if args.smoke  else args.max_steps
@@ -107,7 +106,7 @@ def _common_kwargs(args: argparse.Namespace, stage: str) -> dict[str, Any]:
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "learning_rate": args.learning_rate,
         "save_strategy": "steps",
-        "save_steps": max(1, steps),
+        "save_steps": max(1, steps),##===================================
         "report_to": "none",
         "logging_steps": 1,
         "seed": args.seed,
@@ -115,10 +114,12 @@ def _common_kwargs(args: argparse.Namespace, stage: str) -> dict[str, Any]:
 
 
 
-def ____sft类(self):pass
+def ____sft类(self):
+    pass
 def _train_sft(args: argparse.Namespace, source: str, rows: list[dict[str, Any]]) -> str:
     from transformers import AutoTokenizer
     from trl import SFTConfig, SFTTrainer
+
     output = args.output_dir / "sft"
     tokenizer = AutoTokenizer.from_pretrained(source, trust_remote_code=True)
     dataset = _dataset_from_rows(stage_payload("sft", rows), mixed_json=True)##===================================
@@ -132,11 +133,12 @@ def _train_sft(args: argparse.Namespace, source: str, rows: list[dict[str, Any]]
             assistant_only_loss=True,##===================================
         ),
     )
-    _save(trainer, tokenizer, output)##===================================
+    _save(trainer, tokenizer, output)
     return str(output)
 
 
-def ____蒸馏soft白盒(self):pass
+def ____蒸馏soft白盒(self):
+    pass
 ####白盒蒸馏（White-box Distillation） 拥有对教师模型的“完全访问权”，不仅能获得其最终输出，还能深入其内部，利用隐藏状态、注意力矩阵等中间特征进行学习。
 def _train_distillation(
     args: argparse.Namespace, source: str, teacher: str, rows: list[dict[str, Any]]
@@ -163,7 +165,30 @@ def _train_distillation(
     return str(output)
 
 
-def ____rl类(self):pass
+def ____rl类工具exact_total_reward____required_tools_reward(self):
+    pass
+def _train_grpo_tools(args: argparse.Namespace, source: str, rows: list[dict[str, Any]]) -> str:
+    from transformers import AutoTokenizer
+    from trl import GRPOTrainer
+
+    output = args.output_dir / "grpo_tools"
+    tokenizer = AutoTokenizer.from_pretrained(source, trust_remote_code=True)
+    dataset = _dataset_from_rows(stage_payload("grpo_tools", rows))##===================================
+    trainer = GRPOTrainer(
+        model=source,
+        processing_class=tokenizer,
+        train_dataset=dataset,
+        tools=TOOLS,##===================================##===================================##===================================##===================================
+        reward_funcs=[exact_total_reward, required_tools_reward],##===================================
+        args=_grpo_config(args, "grpo_tools"),##===================================
+    )
+    _save(trainer, tokenizer, output)
+    return str(output)
+
+
+
+def ____rl类____环境____仅格式final_format_reward(self):
+    pass
 def _grpo_config(args: argparse.Namespace, stage: str) -> Any:
     from trl import GRPOConfig
 
@@ -171,38 +196,17 @@ def _grpo_config(args: argparse.Namespace, stage: str) -> Any:
         **_common_kwargs(args, stage),
         num_generations=args.num_generations,
         max_completion_length=args.max_completion_length,
-        max_tool_calling_iterations=args.max_tool_calling_iterations,
-        chat_template_kwargs={"enable_thinking": False},
+        max_tool_calling_iterations=args.max_tool_calling_iterations,##8 ##===================================
+        chat_template_kwargs={"enable_thinking": False},##===================================##===================================
         log_completions=True,
     )
 
-
 def _environment_factory(args: argparse.Namespace) -> Any:
     if not args.openenv_url:
-        return OrderFulfillmentEnv
+        return OrderFulfillmentEnv##===================================##===================================
+
     from aa_trl_pipline.openenv_adapter import OpenEnvOrderFactory
-
-    return OpenEnvOrderFactory(args.openenv_url)
-
-
-def _train_grpo_tools(args: argparse.Namespace, source: str, rows: list[dict[str, Any]]) -> str:
-    from transformers import AutoTokenizer
-    from trl import GRPOTrainer
-
-    output = args.output_dir / "grpo_tools"
-    tokenizer = AutoTokenizer.from_pretrained(source, trust_remote_code=True)
-    dataset = _dataset_from_rows(stage_payload("grpo_tools", rows))
-    trainer = GRPOTrainer(
-        model=source,
-        processing_class=tokenizer,
-        train_dataset=dataset,
-        tools=TOOLS,
-        reward_funcs=[exact_total_reward, required_tools_reward],
-        args=_grpo_config(args, "grpo_tools"),
-    )
-    _save(trainer, tokenizer, output)
-    return str(output)
-
+    return OpenEnvOrderFactory(args.openenv_url)##===================================##===================================
 
 def _train_grpo_openenv(args: argparse.Namespace, source: str, rows: list[dict[str, Any]]) -> str:
     from transformers import AutoTokenizer
@@ -210,29 +214,30 @@ def _train_grpo_openenv(args: argparse.Namespace, source: str, rows: list[dict[s
 
     output = args.output_dir / "grpo_openenv"
     tokenizer = AutoTokenizer.from_pretrained(source, trust_remote_code=True)
-    dataset = _dataset_from_rows(stage_payload("grpo_openenv", rows))
+    dataset = _dataset_from_rows(stage_payload("grpo_openenv", rows))##===================================
     trainer = GRPOTrainer(
         model=source,
         processing_class=tokenizer,
         train_dataset=dataset,
-        environment_factory=_environment_factory(args),
-        reward_funcs=final_format_reward,
-        args=_grpo_config(args, "grpo_openenv"),
+        environment_factory=_environment_factory(args),##===================================##===================================
+        reward_funcs=final_format_reward,##仅格式##===================================
+        args=_grpo_config(args, "grpo_openenv"),##===================================
     )
     _save(trainer, tokenizer, output)
     return str(output)
 
 
+def ____rl类____环境vllm_server_url训练推理分离____仅格式final_format_reward(self):
+    pass
 def _train_async_grpo(args: argparse.Namespace, source: str, rows: list[dict[str, Any]]) -> str:
     if not args.vllm_server_url:
         raise ValueError("async_grpo requires --vllm-server-url pointing at the same policy checkpoint")
-
     from transformers import AutoTokenizer
     from trl.experimental.async_grpo import AsyncGRPOConfig, AsyncGRPOTrainer
 
     output = args.output_dir / "async_grpo"
     tokenizer = AutoTokenizer.from_pretrained(source, trust_remote_code=True)
-    dataset = _dataset_from_rows(stage_payload("async_grpo", rows))
+    dataset = _dataset_from_rows(stage_payload("async_grpo", rows))##===================================
     steps = 1 if args.smoke else args.max_steps
     config = AsyncGRPOConfig(
         output_dir=str(output),
@@ -242,11 +247,11 @@ def _train_async_grpo(args: argparse.Namespace, source: str, rows: list[dict[str
         learning_rate=args.learning_rate,
         num_generations=args.num_generations,
         max_completion_length=args.max_completion_length,
-        max_tool_calling_iterations=args.max_tool_calling_iterations,
-        vllm_server_base_url=args.vllm_server_url,
-        chat_template_kwargs={"enable_thinking": False},
-        save_strategy="steps",
-        save_steps=max(1, steps),
+        max_tool_calling_iterations=args.max_tool_calling_iterations,##8
+        vllm_server_base_url=args.vllm_server_url,##===================================##===================================
+        chat_template_kwargs={"enable_thinking": False},##===================================##===================================
+        save_strategy="steps",##===================================
+        save_steps=max(1, steps),##===================================
         report_to="none",
         log_completions=True,
         logging_steps=1,
@@ -256,8 +261,8 @@ def _train_async_grpo(args: argparse.Namespace, source: str, rows: list[dict[str
         model=source,
         processing_class=tokenizer,
         train_dataset=dataset,
-        environment_factory=_environment_factory(args),
-        reward_funcs=final_format_reward,
+        environment_factory=_environment_factory(args),##===================================##===================================
+        reward_funcs=final_format_reward,##仅格式##===================================
         args=config,
     )
     _save(trainer, tokenizer, output)
@@ -293,8 +298,6 @@ def train(args: argparse.Namespace) -> None:
             source = _train_grpo_openenv(args, source, rows)##===================================
         elif stage == "async_grpo":
             source = _train_async_grpo(args, source, rows)##===================================
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
