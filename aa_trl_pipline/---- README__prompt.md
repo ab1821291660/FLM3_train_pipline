@@ -16,6 +16,7 @@ Agent 术语表
 2)每个阶段构造20条训练数据，放到aa_trl_pipline/data下
 
 
+
 ## 资料
 【基于trl】Agent 总在打转？从 SFT 到 Harness，后训练怎么做：：https://zhuanlan.zhihu.com/p/2100599338456167919
 
