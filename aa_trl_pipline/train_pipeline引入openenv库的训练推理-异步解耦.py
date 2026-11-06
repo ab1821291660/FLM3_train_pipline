@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 
-from aa_trl_pipline.order_env import OrderFulfillmentEnv
+from aa_trl_pipline.order_env import OrderFulfillmentEnv##===================================##===================================
 from aa_trl_pipline import STAGE_ORDER
 from aa_trl_pipline.prepare_data import DATA_DIR, STAGE_FILES, load_jsonl, validate_datasets
 from aa_trl_pipline.rewards import exact_total_reward, final_format_reward, required_tools_reward##===================================
@@ -205,7 +205,7 @@ def _environment_factory(args: argparse.Namespace) -> Any:
     if not args.openenv_url:
         return OrderFulfillmentEnv##===================================##===================================
 
-    from aa_trl_pipline.openenv_adapter import OpenEnvOrderFactory
+    from aa_trl_pipline.openenv_order.openenv_adapter import OpenEnvOrderFactory
     return OpenEnvOrderFactory(args.openenv_url)##===================================##===================================
 
 def _train_grpo_openenv(args: argparse.Namespace, source: str, rows: list[dict[str, Any]]) -> str:
@@ -303,6 +303,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--smoke", action="store_true", help="one optimizer step per selected stage")
     parser.add_argument("--allow-model-download", action="store_true")
+    parser.add_argument("--vllm-server-url", default="")##===================================环境vllm_server_url训练推理分离
+    parser.add_argument("--openenv-url", default="",##===================================环境vllm_server_url训练推理分离
+        help="use the typed OpenEnv server instead of the in-process environment",
+    )
     ##
     parser.add_argument("--student-model", default="Qwen/Qwen3-0.6B")
     parser.add_argument("--teacher-model", default="Qwen/Qwen3-1.7B")
@@ -310,10 +314,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument(
         "--stages", nargs="+", default=["all"], choices=("all", *STAGE_ORDER)
-    )
-    parser.add_argument("--vllm-server-url", default="")##===================================
-    parser.add_argument("--openenv-url", default="",##===================================
-        help="use the typed OpenEnv server instead of the in-process environment",
     )
     parser.add_argument("--max-steps", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=2)
@@ -348,10 +348,8 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
             entry["signal"] = "exact-total and required-tool rewards"
         elif stage in {"grpo_openenv", "async_grpo"}:
             entry["signal"] = "environment-owned binary final-state reward"
-            entry["environment"] = (
-                f"OpenEnv server at {args.openenv_url}"
-                if args.openenv_url
-                else "in-process OrderFulfillmentEnv"
+            entry["environment"] = (f"OpenEnv server at  OrderFulfillmentEnv {args.openenv_url}" if args.openenv_url
+                             else "in-process openenv_adapter"
             )
         plan.append(entry)
         source = str(output)##=======

@@ -11,7 +11,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
 
-CATALOG: dict[str, dict[str, Any]] = {
+CATALOG: dict[str, dict[str, Any]] = {##商品价
     "SKU-A100": {"name": "便携键盘", "price": "79.90", "stock": 80},
     "SKU-A200": {"name": "无线鼠标", "price": "49.50", "stock": 120},
     "SKU-B100": {"name": "USB-C 扩展坞", "price": "129.00", "stock": 45},
@@ -22,7 +22,7 @@ CATALOG: dict[str, dict[str, Any]] = {
     "SKU-D200": {"name": "编织数据线", "price": "19.90", "stock": 200},
 }
 
-SHIPPING_FEES = {
+SHIPPING_FEES = {##运费
     "北京": "8.00",
     "上海": "9.00",
     "广州": "10.00",

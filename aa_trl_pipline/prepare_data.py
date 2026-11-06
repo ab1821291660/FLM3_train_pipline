@@ -37,6 +37,21 @@ REQUIRED_TOOLS = [
     "calculate_grand_total",
 ]
 
+def ________区分____订单环境中完成采购4个工具____核算订单4个工具(self):pass
+def user_instruction(task: dict[str, Any], stateful: bool = False) -> str:
+    if stateful:##订单环境中【环境中】完成采购
+        return (
+            f"请在订单环境中完成采购：{task['sku_a']} × {task['qty_a']}，"
+            f"{task['sku_b']} × {task['qty_b']}，收货城市为{task['city']}。"
+            "必须先逐个 inspect_product，再逐个 add_to_cart，然后 set_destination，最后 checkout；"
+            "根据工具返回结果，用 TOTAL=xx.xx 结束回答。"
+        )
+    return (##核算订单
+        f"请核算订单：{task['sku_a']} × {task['qty_a']}，{task['sku_b']} × {task['qty_b']}，"
+        f"配送到{task['city']}。必须分轮调用工具：先分别 lookup_product，再分别 "
+        "calculate_line_total，汇总后调用 shipping_quote，最后调用 calculate_grand_total。"
+        "不要心算或跳步，用 TOTAL=xx.xx 结束回答。"
+    )
 
 def _tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     return {
@@ -52,8 +67,8 @@ def _tool_result(name: str, content: str) -> dict[str, str]:
 def task_specs() -> list[dict[str, Any]]:
     """Create 20 unique two-line orders with deterministic expected totals."""
 
-    skus = list(CATALOG)
-    cities = list(SHIPPING_FEES)
+    skus = list(CATALOG)##8
+    cities = list(SHIPPING_FEES)##5
     rows: list[dict[str, Any]] = []
     for index in range(20):
         sku_a = skus[index % len(skus)]
@@ -63,7 +78,7 @@ def task_specs() -> list[dict[str, Any]]:
         qty_a = index % 3 + 1
         qty_b = (index * 2) % 3 + 1
         city = cities[index % len(cities)]
-        totals = order_totals(sku_a, qty_a, sku_b, qty_b, city)
+        totals = order_totals(sku_a, qty_a, sku_b, qty_b, city)##===================================
         rows.append(
             {
                 "index": index,
@@ -78,56 +93,50 @@ def task_specs() -> list[dict[str, Any]]:
     return rows
 
 
-def user_instruction(task: dict[str, Any], stateful: bool = False) -> str:
-    if stateful:
-        return (
-            f"请在订单环境中完成采购：{task['sku_a']} × {task['qty_a']}，"
-            f"{task['sku_b']} × {task['qty_b']}，收货城市为{task['city']}。"
-            "必须先逐个 inspect_product，再逐个 add_to_cart，然后 set_destination，最后 checkout；"
-            "根据工具返回结果，用 TOTAL=xx.xx 结束回答。"
-        )
-    return (
-        f"请核算订单：{task['sku_a']} × {task['qty_a']}，{task['sku_b']} × {task['qty_b']}，"
-        f"配送到{task['city']}。必须分轮调用工具：先分别 lookup_product，再分别 "
-        "calculate_line_total，汇总后调用 shipping_quote，最后调用 calculate_grand_total。"
-        "不要心算或跳步，用 TOTAL=xx.xx 结束回答。"
-    )
+def ____上面为辅助函数(self):pass
 
 
 def sft_row(task: dict[str, Any]) -> dict[str, Any]:
-    subtotal = float(task["merchandise_total"])
-    shipping = float(task["shipping_fee"])
+    subtotal = float(task["merchandise_total"])##========
+    shipping = float(task["shipping_fee"])##========
     messages: list[dict[str, Any]] = [
         {
             "role": "system",
             "content": "你是订单核算 Agent。以工具结果为准，保留两位小数，并完成多轮工具调用。",
         },
-        {"role": "user", "content": user_instruction(task)},
-        _tool_call("lookup_product", {"sku": task["sku_a"]}),
+
+
+        {"role": "user", "content": user_instruction(task)},##===================================##===================================
+
+
+        _tool_call("lookup_product", {"sku": task["sku_a"]}),##========
         _tool_result("lookup_product", lookup_product(task["sku_a"])),
-        _tool_call("lookup_product", {"sku": task["sku_b"]}),
+        _tool_call("lookup_product", {"sku": task["sku_b"]}),##========
         _tool_result("lookup_product", lookup_product(task["sku_b"])),
         _tool_call(
-            "calculate_line_total", {"sku": task["sku_a"], "quantity": task["qty_a"]}
+            "calculate_line_total", {"sku": task["sku_a"], "quantity": task["qty_a"]}##========
         ),
         _tool_result(
             "calculate_line_total", calculate_line_total(task["sku_a"], task["qty_a"])
         ),
         _tool_call(
-            "calculate_line_total", {"sku": task["sku_b"], "quantity": task["qty_b"]}
+            "calculate_line_total", {"sku": task["sku_b"], "quantity": task["qty_b"]}##========
         ),
         _tool_result(
             "calculate_line_total", calculate_line_total(task["sku_b"], task["qty_b"])
         ),
-        _tool_call("shipping_quote", {"city": task["city"], "merchandise_total": subtotal}),
+        ##===================================运费
+        _tool_call("shipping_quote", {"city": task["city"], "merchandise_total": subtotal}),##========
         _tool_result("shipping_quote", shipping_quote(task["city"], subtotal)),
+        ##===================================总价TOTAL==商品价+运费
         _tool_call(
             "calculate_grand_total",
-            {"merchandise_total": subtotal, "shipping_fee": shipping},
+            {"merchandise_total": subtotal, "shipping_fee": shipping},##========
         ),
         _tool_result(
             "calculate_grand_total", calculate_grand_total(subtotal, shipping)
         ),
+        ##===================================最终assistant
         {
             "role": "assistant",
             "content": (
@@ -138,9 +147,9 @@ def sft_row(task: dict[str, Any]) -> dict[str, Any]:
     ]
     return {
         "id": f"sft-{task['index']:02d}",
-        "messages": messages,
-        "tools": TOOL_SCHEMAS,
-        "expected_total": task["grand_total"],
+        "messages": messages,##===================================
+        "tools": TOOL_SCHEMAS,##===================================
+        "expected_total": task["grand_total"],##总价TOTAL==商品价+运费##===================================
     }
 
 
@@ -150,13 +159,15 @@ def prompt_row(task: dict[str, Any], stage: str) -> dict[str, Any]:
             "role": "system",
             "content": "你是可靠的订单 Agent。必须使用给定工具逐步获取事实，不得编造工具结果。",
         },
-        {"role": "user", "content": user_instruction(task)},
+
+
+        {"role": "user", "content": user_instruction(task)},##===================================##===================================
     ]
     return {
         "id": f"{stage}-{task['index']:02d}",
         "prompt": prompt,
-        "expected_total": task["grand_total"],
-        "required_tools": REQUIRED_TOOLS,
+        "expected_total": task["grand_total"],##总价TOTAL==商品价+运费##===================================
+        "required_tools": REQUIRED_TOOLS,##===================================
     }
 
 
@@ -168,14 +179,16 @@ def environment_row(task: dict[str, Any], stage: str) -> dict[str, Any]:
                 "role": "system",
                 "content": "你是订单执行 Agent。环境有状态，必须观察、修改状态并结账。",
             },
-            {"role": "user", "content": user_instruction(task, stateful=True)},
+
+
+            {"role": "user", "content": user_instruction(task, stateful=True)},##===================================##===================================##===================================##===================================
         ],
         "sku_a": task["sku_a"],
         "qty_a": task["qty_a"],
         "sku_b": task["sku_b"],
         "qty_b": task["qty_b"],
         "city": task["city"],
-        "expected_total": task["grand_total"],
+        "expected_total": task["grand_total"],##总价TOTAL==商品价+运费##===================================
     }
 
 
@@ -183,27 +196,22 @@ def build_all_rows() -> dict[str, list[dict[str, Any]]]:
     tasks = task_specs()
     return {
         "sft": [sft_row(task) for task in tasks],
+        ##
         "distillation": [prompt_row(task, "distillation") for task in tasks],
         "grpo_tools": [prompt_row(task, "grpo_tools") for task in tasks],
-        "grpo_openenv": [environment_row(task, "grpo_openenv") for task in tasks],
-        "async_grpo": [environment_row(task, "async_grpo") for task in tasks],
+         ##
+        "grpo_openenv": [environment_row(task, "grpo_openenv") for task in tasks],##===================================
+        "async_grpo": [environment_row(task, "async_grpo") for task in tasks],##===================================
     }
-
-
-def load_jsonl(path: Path) -> list[dict[str, Any]]:
-    with path.open("r", encoding="utf-8") as handle:
-        return [json.loads(line) for line in handle if line.strip()]
-
-
 def write_datasets(data_dir: Path = DATA_DIR) -> dict[str, int]:
     data_dir.mkdir(parents=True, exist_ok=True)
-    all_rows = build_all_rows()
+    all_rows = build_all_rows()##===================================
     for stage, rows in all_rows.items():
         path = data_dir / STAGE_FILES[stage]
         with path.open("w", encoding="utf-8", newline="\n") as handle:
             for row in rows:
                 handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
-    return validate_datasets(data_dir)
+    return validate_datasets(data_dir)##===================================
 
 
 def ________(self):pass
@@ -222,6 +230,11 @@ def _validate_prompt(row: dict[str, Any]) -> None:
         raise ValueError(f"{row['id']} is not a conversational prompt")
     if len(row.get("required_tools", [])) < 2:
         raise ValueError(f"{row['id']} does not require multiple tools")
+
+
+def load_jsonl(path: Path) -> list[dict[str, Any]]:
+    with path.open("r", encoding="utf-8") as handle:
+        return [json.loads(line) for line in handle if line.strip()]
 
 
 def validate_datasets(data_dir: Path = DATA_DIR) -> dict[str, int]:
@@ -253,7 +266,7 @@ def validate_datasets(data_dir: Path = DATA_DIR) -> dict[str, int]:
         else:
             for row in rows:
                 result, reward = replay_oracle(row)##===================================
-                if reward != 1.0 or str(row["expected_total"]) not in result:
+                if reward != 1.0   or str(row["expected_total"]) not in result:
                     raise ValueError(f"{row['id']}: environment oracle failed")
         counts[stage] = len(rows)
     return counts##===================================##===================================##===================================
@@ -262,7 +275,8 @@ def main() -> None:
     parser.add_argument("--data-dir", type=Path, default=DATA_DIR)
     parser.add_argument("--check", action="store_true", help="validate existing files without rewriting")
     args = parser.parse_args()
-    counts = validate_datasets(args.data_dir) if args.check  else write_datasets(args.data_dir)##===================================
+    counts = validate_datasets(args.data_dir) if args.check  \
+             else write_datasets(args.data_dir)##===================================
     for stage in STAGE_ORDER:
         print(f"{stage}: {counts[stage]} rows -> {args.data_dir / STAGE_FILES[stage]}")
 if __name__ == "__main__":

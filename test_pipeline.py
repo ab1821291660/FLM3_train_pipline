@@ -7,7 +7,7 @@ from pathlib import Path
 import torch
 from lfm3_tiny import ByteTokenizer, TinyLFM3Config, TinyLFM3ForCausalLM
 from prepare_data import EXPECTED_FILES, check_datasets##===================================
-from train_lora import model_source
+from train_lora为基于trl的6个阶段 import model_source
 from train_pipeline import ROOT, STAGE_ORDER, validate_stage_schemas##===================================
 
 

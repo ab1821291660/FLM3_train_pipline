@@ -9,22 +9,28 @@ from __future__ import annotations
 import json
 from decimal import Decimal
 
-from aa_trl_pipline.toolkit import CATALOG, SHIPPING_FEES, lookup_product, order_totals
+from aa_trl_pipline.toolkit import CATALOG, SHIPPING_FEES, \
+                                    lookup_product, \
+                                    order_totals
 
 
-class OrderFulfillmentEnv:
+class OrderFulfillmentEnv:##具有环境拥有的二元奖励的有状态购物任务
     """Stateful shopping task with an environment-owned binary reward."""
-
     def __init__(self) -> None:
         self.target_cart: dict[str, int] = {}
         self.target_city = ""
         self.expected_total = "0.00"
-        self.cart: dict[str, int] = {}
+
+
         self.inspected: set[str] = set()
-        self.destination = ""
-        self.checked_out = False
-        self.last_total = ""
+        self.cart: dict[str, int] = {}
         self.calls: list[str] = []
+        ##
+        self.destination = ""
+        ##
+        self.last_total = ""
+        self.checked_out = False
+
 
     def reset(
         self,
@@ -37,33 +43,23 @@ class OrderFulfillmentEnv:
         **kwargs: object,
     ) -> None:
         """Reset one episode from the non-prompt columns of a dataset row."""
-
         del kwargs
         self.target_cart = {sku_a: int(qty_a), sku_b: int(qty_b)}
         self.target_city = city
         self.expected_total = str(expected_total)
-        self.cart = {}
+
+
         self.inspected = set()
-        self.destination = ""
-        self.checked_out = False
-        self.last_total = ""
+        self.cart = {}
         self.calls = []
+        ##
+        self.destination = ""##城市-运费
+        ##
+        self.last_total = ""
+        self.checked_out = False
 
-    def get_reward(self) -> float:
-        """Return one only for a correct checked-out state and real tool sequence."""
-
-        required = {"inspect_product", "add_to_cart", "set_destination", "checkout"}
-        correct = (
-            self.checked_out
-            and self.cart == self.target_cart
-            and self.destination == self.target_city
-            and self.last_total == self.expected_total
-            and self.inspected == set(self.target_cart)
-            and required.issubset(self.calls)
-            and self.calls.count("add_to_cart") >= 2
-        )
-        return float(correct)
-
+    def ______(self):
+        pass
     def inspect_product(self, sku: str) -> str:
         """Inspect a product before it can be added to the cart.
 
@@ -74,7 +70,7 @@ class OrderFulfillmentEnv:
             Product details encoded as JSON.
         """
 
-        result = lookup_product(sku)
+        result = lookup_product(sku)##===================================
         self.inspected.add(sku)
         self.calls.append("inspect_product")
         return result
@@ -114,6 +110,8 @@ class OrderFulfillmentEnv:
         self.calls.append("set_destination")
         return json.dumps({"destination": city}, ensure_ascii=False)
 
+    def _______(self):
+        pass
     def checkout(self) -> str:
         """Compute and lock the total for the current cart and destination.
 
@@ -126,7 +124,7 @@ class OrderFulfillmentEnv:
         if not self.destination:
             raise ValueError("set destination before checkout")
         items = sorted(self.cart.items())
-        totals = order_totals(
+        totals = order_totals(##===================================
             items[0][0], items[0][1], items[1][0], items[1][1], self.destination
         )
         self.last_total = totals["grand_total"]
@@ -138,7 +136,26 @@ class OrderFulfillmentEnv:
             sort_keys=True,
         )
 
+    def ________(self):
+        pass
+    def get_reward(self) -> float:
+        """Return one only for a correct checked-out state and real tool sequence."""
+        required = {"inspect_product", "add_to_cart", "set_destination", "checkout"}
+        correct = (
+                self.checked_out
+                and self.cart == self.target_cart
+                and self.destination == self.target_city
+                and self.last_total == self.expected_total
+                and self.inspected == set(self.target_cart)
 
+                and required.issubset(self.calls)
+                and self.calls.count("add_to_cart") >= 2
+        )
+        return float(correct)
+
+
+def ________测试测试(self):
+    pass
 def replay_oracle(row: dict[str, object]) -> tuple[str, float]:
     """Execute the known-good multi-turn path used by tests and data checks."""
     env = OrderFulfillmentEnv()##===================================

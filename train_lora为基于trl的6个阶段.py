@@ -74,11 +74,37 @@ def prepare_dpo_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return prepared
 
 
+
+#{
+# "candidates":[
+#     {
+#     "reward":1.0,
+#     "text":"<tool_call>{\"name\":\"check_allowlist\",\"arguments\":{\"domain\":\"example.com\"}}</tool_call>"
+#     },
+#     {
+#     "reward":0.2,
+#     "text":"<tool_call>{\"name\":\"check_allowlist\",\"arguments\":{}}</tool_call>"
+#     },
+#     {
+#     "reward":-1.0,
+#     "text":"<tool_call>{\"name\":\"web_search\",\"arguments\":{}}</tool_call>"
+#     }
+# ],
+# "domain":"允许列表",
+# "expected_tool":"check_allowlist",
+# "id":"agentic-rl-15",
+# "prompt":"检查 example.com 是否允许。",##===================================
+# "success_criteria":"工具名和参数均匹配；未执行真实外部副作用。",
+# "tools":[##===================================
+#     "check_allowlist",
+#     "web_search"
+#     ]
+# }
 def prepare_grpo_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
             "prompt": [{"role": "user", "content": row["prompt"]}],
-            "expected_tool": row["expected_tool"],
+            "expected_tool": row["expected_tool"],##===================================
         }
         for row in rows
     ]
@@ -86,7 +112,7 @@ def prepare_grpo_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 
-def ________(self):pass
+def ________6个阶段__mixed_rl为DPO不对____mopd也不对_为黑盒的数据蒸馏____(self):pass
 def train(args: argparse.Namespace) -> None:
     source = model_source(args)##===================================
     # Heavy imports are below the explicit checkpoint/download guard.
@@ -125,7 +151,10 @@ def train(args: argparse.Namespace) -> None:
                 task_type="CAUSAL_LM",
             )
         stage_output = args.output_dir / stage
-        if stage in {"pretrain", "midtrain", "sft", "mopd"}:
+        if stage in {"pretrain", ##===================================
+                     "midtrain", ##===================================
+                     "sft", ##===================================
+                     "mopd"}:##===================================
             dataset = Dataset.from_list(prepare_sft_rows(stage, rows, tokenizer))##===================================
 
 
@@ -148,7 +177,7 @@ def train(args: argparse.Namespace) -> None:
                 processing_class=tokenizer,
                 peft_config=peft_config,
             )
-        elif stage == "mixed_rl":
+        elif stage == "mixed_rl":####怎么是DPOTrainer那 ##===================================
             dataset = Dataset.from_list(prepare_dpo_rows(rows))##===================================
             ##
             trainer = DPOTrainer(
@@ -168,13 +197,13 @@ def train(args: argparse.Namespace) -> None:
                 processing_class=tokenizer,
                 peft_config=peft_config,
             )
-        else:
+        else:##agentic_rl ##===================================
             dataset = Dataset.from_list(prepare_grpo_rows(rows))##===================================
             ##
             def tool_reward(prompts, completion_ids, expected_tool, **kwargs):
                 del prompts, kwargs
                 texts = tokenizer.batch_decode(completion_ids, skip_special_tokens=False)
-                return [1.0 if expected in text else -1.0 for expected, text in zip(expected_tool, texts)]
+                return [1.0 if expected in text    else -1.0    for expected, text in zip(expected_tool, texts)]
             trainer = GRPOTrainer(
                 model=model,
                 reward_funcs=tool_reward,##===================================

@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from openenv.core import EnvClient
-from openenv.core.client_types import StepResult
 from openenv.core.env_server.types import State
-
+from openenv.core.client_types import StepResult
 from aa_trl_pipline.openenv_order.models import OrderAction, OrderObservation
 
 
-class OrderEnvClient(EnvClient[OrderAction, OrderObservation, State]):
+class OrderEnvClient(EnvClient[OrderAction, OrderObservation,
+                    State]):
     def _step_payload(self, action: OrderAction) -> dict:
         return action.model_dump(exclude_none=True)
 
@@ -19,7 +19,7 @@ class OrderEnvClient(EnvClient[OrderAction, OrderObservation, State]):
             reward=payload.get("reward"),
             done=payload.get("done", False),
         )
-        return StepResult(
+        return StepResult(##===================================
             observation=observation,
             reward=observation.reward,
             done=observation.done,
